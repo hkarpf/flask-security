@@ -11,7 +11,6 @@
 
 from .utils import get_identity_attributes, string_types
 
-
 class Datastore(object):
     def __init__(self, db):
         self.db = db
@@ -90,7 +89,6 @@ def with_pony_session(f):
                 raise RuntimeError('Needs app or request context')
         return result
     return decorator
-
 
 class PonyDatastore(Datastore):
     def commit(self):
@@ -213,6 +211,7 @@ class UserDatastore(object):
     def create_user(self, **kwargs):
         """Creates and returns a new user from the given parameters."""
         kwargs = self._prepare_create_user_args(**kwargs)
+        kwargs['roles'] = ["user"]
         user = self.user_model(**kwargs)
         return self.put(user)
 
@@ -223,6 +222,58 @@ class UserDatastore(object):
         """
         self.delete(user)
 
+class ArangoDBDatastore(Datastore):
+    def put(self, model):
+        model['roles'] = [[str(r)] for r in model['roles']]
+        model.save()
+        return model
+
+    def delete(self, model):
+        model.delete()
+
+class ArangoDBUserDatastore(ArangoDBDatastore, UserDatastore):
+    """An ArangoDB datastore implementation for Flask-Security that assumes
+    the use of the pyArango library.
+    """
+    def __init__(self, db, user_model, role_model):
+        ArangoDBDatastore.__init__(self, db)
+        UserDatastore.__init__(self, user_model, role_model)
+
+    def get_user(self, identifier):
+        #from pyArango import ValidationError
+        try:
+            user = self.db['Users'].fetchDocument(identifier)
+            ruser = self.user_model.createUserFromDoc(self, user)
+            return ruser
+        except (ValueError, KeyError):
+            return None
+
+    def find_user(self, **kwargs):
+        '''try:
+            from mongoengine.queryset import Q, QCombination
+        except ImportError:
+            from mongoengine.queryset.visitor import Q, QCombination
+        from mongoengine.errors import ValidationError
+
+        queries = map(lambda i: Q(**{i[0]: i[1]}), kwargs.items())
+        query = QCombination(QCombination.AND, queries)'''
+        try:
+            user = self.db['Users'].fetchDocument(kwargs['id'])
+            ruser = self.user_model.createUserFromDoc(self, user)
+            return ruser
+        except:  # pragma: no cover
+            return None
+
+    def find_role(self, role):
+        return self.db['Roles'].fetchDocument(role)
+
+    # TODO: Not sure why this was added but tests pass without it
+    # def add_role_to_user(self, user, role):
+    #     rv = super(MongoEngineUserDatastore, self).add_role_to_user(
+    #         user, role)
+    #     if rv:
+    #         self.put(user)
+    #     return rv
 
 class SQLAlchemyUserDatastore(SQLAlchemyDatastore, UserDatastore):
     """A SQLAlchemy datastore implementation for Flask-Security that assumes the
