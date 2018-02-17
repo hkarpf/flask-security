@@ -211,7 +211,7 @@ class UserDatastore(object):
     def create_user(self, **kwargs):
         """Creates and returns a new user from the given parameters."""
         kwargs = self._prepare_create_user_args(**kwargs)
-        kwargs['roles'] = ["user"]
+        kwargs['roles'] = ['user']
         user = self.user_model(**kwargs)
         return self.put(user)
 
@@ -224,7 +224,7 @@ class UserDatastore(object):
 
 class ArangoDBDatastore(Datastore):
     def put(self, model):
-        model['roles'] = [[str(r)] for r in model['roles']]
+        model['roles'] = [str(r) for r in model['roles']]
         model.save()
         return model
 
