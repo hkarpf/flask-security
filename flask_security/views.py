@@ -115,7 +115,7 @@ def register():
     form = form_class(form_data)
 
     if form.validate_on_submit():
-        user = register_user(**form.to_dict())
+        user = register_user(**form_data.to_dict())
         form.user = user
 
         if not _security.confirmable or _security.login_without_confirmation:
